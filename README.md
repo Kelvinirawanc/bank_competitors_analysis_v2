@@ -9,11 +9,9 @@ A polished Google Play competitive-intelligence dashboard for Allo Bank™ and 2
 
 ## Data package
 
-The dashboard uses the newly supplied 5 Oct 2026 Google Play web extracts in `data/`:
-
-- `app_metrics_latest_web_2026-10-05.csv`
-- `reviews_surfaced_web_2026-10-05.csv`
-- `method_and_limits_2026-10-05.csv`
+The repository keeps the supplied 5 Oct 2026 configuration in `data/app_metrics_latest_web_2026-10-05.csv`.
+After a scraper run, the current app metadata is written to `data/app_metrics_latest.csv` and
+the cumulative raw public-review archive is written to `data/reviews_all_public_raw.csv`.
 
 Run:
 
@@ -45,7 +43,7 @@ The workflow in `.github/workflows/deploy-pages.yml` rebuilds `dashboard_data.js
 
 ## Notes
 
-The customer-voice area uses public review summaries surfaced in the supplied Google Play extraction. Where star scores are unavailable, the dashboard assigns a directional text signal from the supplied summary.
+The customer-voice area is built from the raw public-review archive collected by `scrape_google_play.py`.
 
 Data analysis & dashboard by Kelvin Irawan.
 
@@ -86,6 +84,18 @@ The task runs `run_daily_scraper.bat`.
 If the machine is asleep at 00:00, the task is configured to start when available
 only when using the PowerShell setup. For the BAT setup, Windows must be awake.
 
+
+## GitHub Actions — automatic dashboard updates
+
+The project also includes `.github/workflows/update-dashboard.yml`. It runs the full Google Play scraper automatically every day at **00:00 GMT+7 / Asia-Jakarta**, rebuilds `data/dashboard_data.json`, and commits changed data back to `main`. The existing `deploy-pages.yml` then deploys the updated dashboard automatically after the data commit.
+
+You can also run it manually from GitHub: **Actions → Update Google Play Dashboard Data → Run workflow**.
+
+> GitHub Actions cron jobs target 17:00 UTC for 00:00 GMT+7, but GitHub may start scheduled jobs a few minutes later because scheduled workflows are not guaranteed to begin exactly on the minute.
+
+## One-click local scraper
+
+Double-click `run_scraper.bat` to install the Python dependencies and run the full local collection immediately. The older `run_daily_scraper.bat` now calls this same runner, so the Windows Task Scheduler setup remains compatible.
 
 ### Install the schedule
 

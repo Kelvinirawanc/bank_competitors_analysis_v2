@@ -10,11 +10,14 @@ Allo Bank™ plus 24 selected Indonesian banking and fintech applications across
 
 ## Source files
 
-The current dashboard package is built from the supplied Google Play web extracts dated 5 October 2026:
+The supplied 5 October 2026 files provide the initial app universe and methodology context.
+The automated collection path then updates the monitoring dataset from the public Google Play endpoint:
 
-- `data/app_metrics_latest_web_2026-10-05.csv` — current app-level store metrics
-- `data/reviews_surfaced_web_2026-10-05.csv` — publicly surfaced review signals
-- `data/method_and_limits_2026-10-05.csv` — source and coverage notes
+- `data/app_metrics_latest_web_2026-10-05.csv` — fallback app configuration and package IDs
+- `data/app_metrics_latest.csv` — latest collected app-level Play Store metadata
+- `data/reviews_all_public_raw.csv` — cumulative deduplicated raw public reviews
+- `data/review_collection_status.csv` — per-app collection status and date coverage
+- `data/raw_reviews/runs/` — immutable per-run raw review snapshots
 
 ## Front-end calculations
 
@@ -24,14 +27,15 @@ Compact values such as `69.2K`, `1.94M`, and `100M+` are converted to numeric va
 
 ## Customer voice
 
-Each surfaced review is assigned a directional signal:
+Each collected public review is assigned a directional signal:
 
 - **Positive** — praise, satisfaction, or clear benefit.
 - **Mixed** — positive value and concern/friction appear together.
 - **Neutral** — factual or unclear tone.
 - **Concern** — complaint, failure, friction, or dissatisfaction.
 
-The dashboard uses an exposed star score when one is supplied. Otherwise, the directional tone is inferred from the supplied review summary; the underlying full review text is not recreated.
+The dashboard uses the collected star score when available. The raw review text is retained in the raw archive;
+the browser dashboard renders selected customer-voice signals rather than exposing the full archive on every page.
 
 ## Interpretation
 

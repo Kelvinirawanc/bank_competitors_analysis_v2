@@ -4,7 +4,8 @@ Allo Bank Competitive Intelligence Monitor
 Google Play full public-review collector.
 
 Scope:
-    25 apps configured in data/app_metrics_latest_web_2026-10-05.csv
+    25 apps configured in the latest app metrics file, with the supplied
+    5 Oct 2026 configuration as the fallback.
 
 The collector:
     - retrieves ALL review records returned by google-play-scraper/reviews_all()
@@ -53,7 +54,8 @@ BASE = Path(__file__).resolve().parent
 DATA = BASE / "data"
 RAW_DIR = DATA / "raw_reviews"
 RUN_DIR = RAW_DIR / "runs"
-METRICS_SOURCE = DATA / "app_metrics_latest_web_2026-10-05.csv"
+METRICS_SOURCE_CURRENT = DATA / "app_metrics_latest.csv"
+METRICS_SOURCE_LEGACY = DATA / "app_metrics_latest_web_2026-10-05.csv"
 MASTER_REVIEWS = DATA / "reviews_all_public_raw.csv"
 MASTER_SNAPSHOT = DATA / "review_collection_status.csv"
 METRICS_CURRENT = DATA / "app_metrics_latest.csv"
@@ -72,9 +74,10 @@ def install_error_hint():
 
 
 def load_apps() -> pd.DataFrame:
-    if not METRICS_SOURCE.exists():
-        raise FileNotFoundError(f"Missing app config: {METRICS_SOURCE}")
-    df = pd.read_csv(METRICS_SOURCE, dtype=str).fillna("")
+    source = METRICS_SOURCE_CURRENT if METRICS_SOURCE_CURRENT.exists() else METRICS_SOURCE_LEGACY
+    if not source.exists():
+        raise FileNotFoundError(f"Missing app config: {source}")
+    df = pd.read_csv(source, dtype=str).fillna("")
     required = {"app_name", "package_id", "category", "benchmark_role", "source_url"}
     missing = required - set(df.columns)
     if missing:
