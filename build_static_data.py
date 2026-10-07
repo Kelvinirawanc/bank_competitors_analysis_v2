@@ -216,11 +216,17 @@ def build() -> None:
     for r in reviews:
         topic_counts[r["topic"]] = topic_counts.get(r["topic"], 0) + 1
 
-    report_date = method.get("report_date") or "2026-10-05"
+    snapshot_dates = sorted({clean(row.get("snapshot_date")) for row in metrics_rows if clean(row.get("snapshot_date"))})
+    report_date = snapshot_dates[-1] if snapshot_dates else (method.get("report_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d"))
     last_app_update = max((a["store_updated"] for a in apps if a["store_updated"]), default=None)
     latest_review = max((r["review_date"] for r in reviews if r["review_date"]), default=None)
-    source_label = method.get("high_level_source") or "Google Play public app pages / search-indexed current page content"
+    source_label = method.get("high_level_source") or "Google Play public app pages / public review endpoint"
     generated_at = datetime.now(timezone.utc).isoformat()
+
+    try:
+        report_date_label = datetime.strptime(report_date, "%Y-%m-%d").strftime("%d %b %Y")
+    except ValueError:
+        report_date_label = report_date
 
     payload = {
         "generated_at_utc": generated_at,
@@ -245,7 +251,7 @@ def build() -> None:
             "source_files": [METRICS.name, REVIEWS.name if REVIEWS.exists() else LEGACY_REVIEWS.name, METHOD.name],
         },
         "ui": {
-            "last_updated_label": "05 Oct 2026",
+            "last_updated_label": report_date_label,
             "status_label": "Monitoring",
             "source_label": "Google Play · Indonesia",
             "coverage_label": f"{len(apps)} apps · {len(reviews):,} raw public reviews",

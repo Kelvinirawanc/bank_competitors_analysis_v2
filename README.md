@@ -23,6 +23,8 @@ This generates `data/dashboard_data.json`, the browser-ready layer used by the f
 
 ## Front-end experience
 
+The dashboard snapshot date is taken from the latest successful `app_metrics_latest.csv` snapshot, so the visible update date moves with the scraper rather than remaining tied to the original 5 Oct 2026 source package.
+
 The UI is designed as an operational monitoring dashboard: live-style status treatment, local clock, manual refresh control, periodic refresh polling, responsive filters, benchmark charts, customer-voice signals, and an Allo Bank focus view.
 
 The interface does not expose implementation wording such as "static dataset". The data remains traceable through the supplied CSV files and methodology document in `data/`.
@@ -39,7 +41,7 @@ then open `http://localhost:8000`.
 
 ## GitHub Pages
 
-The workflow in `.github/workflows/deploy-pages.yml` rebuilds `dashboard_data.json` and deploys the dashboard to GitHub Pages.
+The `.github/workflows/update-dashboard.yml` and `.github/workflows/deploy-pages.yml` workflows update the data and deploy the dashboard to GitHub Pages.
 
 ## Notes
 
@@ -93,9 +95,23 @@ You can also run it manually from GitHub: **Actions → Update Google Play Dashb
 
 > GitHub Actions cron jobs target 17:00 UTC for 00:00 GMT+7, but GitHub may start scheduled jobs a few minutes later because scheduled workflows are not guaranteed to begin exactly on the minute.
 
+## Adaptive scraper + dashboard Run Scraper button
+
+`scrape_google_play_adaptive.py` is now the primary collector. The benchmark universe remains the explicit 25-app configuration in `data/app_metrics_latest_web_2026-10-05.csv`, but each package ID is validated on every run. If a package becomes unavailable, the scraper searches Google Play by the configured app name and changes the package ID only when the title-match confidence passes the configured threshold. Resolution decisions are appended to `data/app_resolution_registry.csv`.
+
+Open the dashboard with `open_dashboard.bat`. This starts `dashboard_server.py` on `127.0.0.1:8000`. The dashboard's **Run Scraper** button then invokes the adaptive Python scraper, installs missing dependencies, polls the run status, and reloads `data/dashboard_data.json` when the run completes.
+
+When the dashboard is hosted on GitHub Pages, the same **Run Scraper** button cannot execute Python because GitHub Pages serves static files only. The button therefore opens the repository's GitHub Actions workflow, where the workflow can be started manually with **Run workflow**. GitHub's current Pages documentation recommends `actions/configure-pages@v5`, `actions/upload-pages-artifact@v4`, and `actions/deploy-pages@v4` for custom workflow deployments.
+
+## GitHub Actions automation
+
+`.github/workflows/update-dashboard.yml` runs daily at **00:00 Asia/Jakarta** (`17:00 UTC`) and can also be launched manually. It installs dependencies, runs the adaptive scraper, rebuilds `data/dashboard_data.json`, and commits changed data. `.github/workflows/deploy-pages.yml` deploys the repository to GitHub Pages on normal pushes and after a successful scheduled/manual data-update workflow.
+
+After pushing the repository to GitHub, set **Settings → Pages → Source → GitHub Actions**. Scheduled workflows run from the default branch.
+
 ## One-click local scraper
 
-Double-click `run_scraper.bat` to install the Python dependencies and run the full local collection immediately. The older `run_daily_scraper.bat` now calls this same runner, so the Windows Task Scheduler setup remains compatible.
+Double-click `run_scraper.bat` to install/update the Python dependencies and run the full adaptive local collection immediately. The older `run_daily_scraper.bat` now calls this same runner, so the Windows Task Scheduler setup remains compatible.
 
 ### Install the schedule
 

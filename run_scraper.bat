@@ -2,11 +2,11 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 
-title Allo Bank Competitive Intelligence - Google Play Scraper
+title Allo Bank Competitive Intelligence - Adaptive Google Play Scraper
 
 echo ============================================================
 echo Allo Bank Competitive Intelligence Monitor
-echo Full Google Play Public Review Scraper
+echo Adaptive Google Play Scraper
 echo ============================================================
 echo.
 
@@ -29,20 +29,20 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [3/3] Running full Google Play collection...
+echo [3/3] Running adaptive scraper...
 echo.
-echo Target: 25 apps
+echo Package IDs are validated and can be re-resolved from Google Play by app name.
 echo Storefront: Indonesia ^(id/id^)
-echo Reviews: all publicly retrievable records returned by the public endpoint
-echo No star/date/keyword/reviewer filters are applied.
+echo Reviews: all publicly retrievable records returned by reviews_all().
 echo.
 
-py scrape_google_play.py --lang id --country id
+py scrape_google_play_adaptive.py --lang id --country id
 if errorlevel 1 (
     echo.
     echo ============================================================
     echo ERROR: Scraper failed.
-    echo Check data\review_collection_status.csv for per-app status.
+    echo Check data\review_collection_status.csv and
+    echo data\last_scraper_run.log when using the dashboard controller.
     echo ============================================================
     echo.
     pause
@@ -51,8 +51,8 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo SUCCESS: Scraping completed.
-echo The raw archive and dashboard_data.json were rebuilt.
+echo SUCCESS: Adaptive scraping completed.
+echo dashboard_data.json has been rebuilt.
 echo ============================================================
 echo.
 endlocal

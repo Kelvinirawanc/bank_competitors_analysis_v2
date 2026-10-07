@@ -8,7 +8,9 @@ const state = {
   focusAppKey: "com.alloapp.yump",
   sourceLabel: "Google Play · Indonesia",
   lastFetchAt: null,
-  refreshTimer: null
+  refreshTimer: null,
+  scraperPollTimer: null,
+  scraperRunning: false
 };
 
 const COLORS = {
@@ -755,6 +757,121 @@ function setRefreshButton(loading = false) {
     : '<span aria-hidden="true">↻</span><span>Refresh</span>';
 }
 
+function setScraperButton(status = "idle", message = "Scraper ready") {
+  const button = $("runScraper");
+  const statusEl = $("scraperStatus");
+  if (!button) return;
+
+  const running = ["queued", "preparing", "running"].includes(status);
+  state.scraperRunning = running;
+  button.disabled = running;
+  button.classList.toggle("is-running", running);
+  button.classList.toggle("is-done", status === "completed");
+
+  if (running) {
+    button.innerHTML = '<span class="spin" aria-hidden="true">↻</span><span>Running…</span>';
+  } else if (status === "completed") {
+    button.innerHTML = '<span aria-hidden="true">✓</span><span>Scraper Done</span>';
+  } else if (status === "failed") {
+    button.innerHTML = '<span aria-hidden="true">!</span><span>Run Again</span>';
+  } else {
+    button.innerHTML = '<span aria-hidden="true">▶</span><span>Run Scraper</span>';
+  }
+
+  if (statusEl) statusEl.textContent = message || "Scraper ready";
+}
+
+function githubActionsUrl() {
+  const repoMeta = document.querySelector('meta[name="github-repo"]');
+  const configuredRepo = repoMeta?.content?.trim();
+  if (!location.hostname.endsWith("github.io")) return null;
+  const owner = location.hostname.split(".")[0];
+  const pathParts = location.pathname.split("/").filter(Boolean);
+  const repo = configuredRepo || pathParts[0] || `${owner}.github.io`;
+  return `https://github.com/${owner}/${repo}/actions/workflows/update-dashboard.yml`;
+}
+
+async function pollScraperStatus() {
+  if (state.scraperPollTimer) clearInterval(state.scraperPollTimer);
+
+  const check = async () => {
+    try {
+      const response = await fetch(`/api/scraper-status?ts=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Status endpoint returned HTTP ${response.status}`);
+      const payload = await response.json();
+      setScraperButton(payload.status || "idle", payload.message || "Scraper ready");
+
+      if (["completed", "failed", "idle"].includes(payload.status)) {
+        clearInterval(state.scraperPollTimer);
+        state.scraperPollTimer = null;
+        if (payload.status === "completed") {
+          await load(true);
+        }
+      }
+    } catch (error) {
+      clearInterval(state.scraperPollTimer);
+      state.scraperPollTimer = null;
+      setScraperButton("idle", "Local scraper controller not available");
+      console.warn("Scraper status polling stopped:", error);
+    }
+  };
+
+  await check();
+  if (!state.scraperPollTimer) {
+    state.scraperPollTimer = setInterval(check, 2000);
+  }
+}
+
+async function runScraper() {
+  if (state.scraperRunning) return;
+  setScraperButton("preparing", "Starting local adaptive scraper…");
+
+  try {
+    const response = await fetch("/api/run-scraper", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lang: "id", country: "id" })
+    });
+
+    if (response.status === 404 || response.status === 405) {
+      const workflow = githubActionsUrl();
+      setScraperButton("idle", "Opening GitHub Actions…");
+      if (workflow) {
+        window.open(workflow, "_blank", "noopener,noreferrer");
+        return;
+      }
+      throw new Error("Run Scraper requires the local dashboard controller.");
+    }
+
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const body = await response.json();
+        detail = body.error || detail;
+      } catch (_) {
+        // Keep generic HTTP detail when the endpoint does not return JSON.
+      }
+      throw new Error(detail);
+    }
+
+    setScraperButton("queued", "Scraper queued…");
+    await pollScraperStatus();
+  } catch (error) {
+    const workflow = githubActionsUrl();
+    if (workflow) {
+      setScraperButton("idle", "Local runner unavailable · opening GitHub Actions");
+      window.open(workflow, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setScraperButton("failed", error.message || "Scraper failed");
+    document.body.insertAdjacentHTML(
+      "afterbegin",
+      `<div class="demo-warning"><strong>Scraper could not start:</strong> ${esc(error.message)}. Use <code>open_dashboard.bat</code> to launch the local controller.</div>`
+    );
+    console.error("Scraper start failed:", error);
+  }
+}
+
 function updateFeedMeta(data) {
   const dateLabel = data.ui?.last_updated_label || formatDate(data.source_snapshot_date);
   const coverage = data.ui?.coverage_label || `${state.apps.length} apps`;
@@ -842,6 +959,8 @@ $("refreshData").addEventListener("click", () => load(false).catch(error => {
   );
   console.error(error);
 }));
+
+$("runScraper").addEventListener("click", () => runScraper());
 
 updateLiveClock();
 setInterval(updateLiveClock, 1000);
