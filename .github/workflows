@@ -1,0 +1,77 @@
+name: Update Bank Competitor Dashboard Data
+
+on:
+  schedule:
+    # 00:00 Asia/Jakarta = 17:00 UTC on the previous calendar day.
+    - cron: "0 17 * * *"
+
+  workflow_dispatch:
+    inputs:
+      lang:
+        description: "Google Play language"
+        required: false
+        default: "id"
+
+      country:
+        description: "Google Play country"
+        required: false
+        default: "id"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bank-competitor-data-update
+  cancel-in-progress: false
+
+jobs:
+  scrape-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run adaptive Google Play scraper
+        env:
+          LANG_CODE: ${{ github.event.inputs.lang || 'id' }}
+          COUNTRY_CODE: ${{ github.event.inputs.country || 'id' }}
+        run: |
+          python scrape_google_play_adaptive.py \
+            --lang "$LANG_CODE" \
+            --country "$COUNTRY_CODE"
+
+      - name: Show scraper outputs
+        run: |
+          echo "Generated files:"
+          ls -lh \
+            data/dashboard_data.json \
+            data/app_metrics_latest.csv \
+            data/review_collection_status.csv \
+            data/app_resolution_registry.csv
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/
+
+          if git diff --cached --quiet; then
+            echo "No data changes to commit."
+          else
+            git commit -m "chore(data): update bank competitor intelligence"
+            git push
+          fi
